@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Real-Time Chat</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- SockJS & STOMP -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.2.0/bundles/stomp.umd.min.js"></script>
+
+    <style>
+        body { background: #f4f6f9; }
+
+        .chat-container {
+            max-width: 600px;
+            margin: 40px auto;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,.1);
+        }
+
+        .chat-header {
+            background: #0d6efd;
+            color: #fff;
+            padding: 14px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .self {
+            background: #0d6efd;
+            color: #fff;
+            margin-left: auto;
+        }
+
+        .other {
+            background: #e9ecef;
+            color: #000;
+        }
+
+        .system {
+            text-align: center;
+            font-size: 13px;
+            color: #6c757d;
+            margin: 8px 0;
+        }
+
+        .chat-footer {
+            border-top: 1px solid #ddd;
+            padding: 10px;
+        }
+
+        #typing {
+            font-size: 12px;
+            color: #6c757d;
+            min-height: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">Secure Real-Time Chat</div>
+
+    <div id="chat" class="chat-body"></div>
+
+    <div class="chat-footer">
+        <div class="input-group">
+            <input id="messageInput" class="form-control" placeholder="Type a message" disabled>
+            <button id="sendBtn" class="btn btn-primary" disabled>Send</button>
+        </div>
+        <div id="typing"></div>
+    </div>
+</div>
+
+<script>
+    let stompClient = null;
+    let typingTimeout = null;
+    let currentUser = null;
+
+    function setConnected(connected) {
+        document.getElementById('sendBtn').disabled = !connected;
+        document.getElementById('messageInput').disabled = !connected;
+    }
+
+    function showMessage(message) {
+        const chat = document.getElementById('chat');
+        const div = document.createElement('div');
+
+        if (message.type === 'JOIN') {
+            div.className = 'system';
+            div.textContent = message.sender + ' joined the chat';
+        }
+        else if (message.type === 'LEAVE') {
+            div.className = 'system';
+            div.textContent = message.sender + ' left the chat';
+        }
+        else if (message.type === 'TYPING') {
+            if (message.sender !== currentUser) {
+                document.getElementById('typing').textContent =
+                    message.sender + ' is typing...';
+
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    document.getElementById('typing').textContent = '';
+                }, 1500);
+            }
+            return;
+        }
+        else {
+            const isSelf = message.sender === currentUser;
+            div.className = 'message ' + (isSelf ? 'self' : 'other');
+            div.innerHTML = `<strong>${message.sender}</strong><br>${message.content}`;
+        }
+
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function sendMessage() {
+        const content = document.getElementById('messageInput').value.trim();
+        if (!content) return;
+
+        stompClient.publish({
+            destination: '/app/sendMessage',
+            body: JSON.stringify({
+                type: 'CHAT',
+                content: content
+            })
+        });
+
+        document.getElementById('messageInput').value = '';
+    }
+
+    function connect() {
+        const token = localStorage.getItem("jwt");
+
+        if (!token) {
+            alert("JWT token missing. Please login first.");
+            window.location.href = "/login";
+            return;
+        }
+
+        const socket = new SockJS('/chat');
+
+        stompClient = new StompJs.Client({
+            webSocketFactory: () => socket,
+            reconnectDelay: 5000,
+            connectHeaders: {
+                Authorization: "Bearer " + token
+            }
+        });
+
+        stompClient.onConnect = frame => {
+            // Extract username from server principal
+            currentUser = frame.headers['user-name'];
+
+            setConnected(true);
+
+            stompClient.subscribe('/topic/message', msg =>
+                showMessage(JSON.parse(msg.body))
+            );
+
+            stompClient.publish({
+                destination: '/app/sendMessage',
+                body: JSON.stringify({ type: 'JOIN' })
+            });
+        };
+
+        stompClient.onStompError = frame => {
+            alert("WebSocket authentication failed. Please login again.");
+            localStorage.removeItem("jwt");
+            window.location.href = "/login";
+        };
+
+        stompClient.activate();
+    }
+
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+    document.getElementById('messageInput').addEventListener('input', () => {
+        stompClient.publish({
+            destination: '/app/sendMessage',
+            body: JSON.stringify({ type: 'TYPING' })
+        });
+    });
+
+    window.onload = connect;
+</script>
+
+</body>
+</html>
