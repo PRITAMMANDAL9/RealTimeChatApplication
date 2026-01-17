@@ -7,8 +7,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.pritam44.RealTimeChatApp.user.User;
-import com.pritam44.RealTimeChatApp.user.UserRepository;
+import com.pritam44.RealTimeChatApp.model.User;
+import com.pritam44.RealTimeChatApp.repository.UserRepository;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {

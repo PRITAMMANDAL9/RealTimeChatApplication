@@ -13,13 +13,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import com.pritam44.RealTimeChatApp.service.JwtService;
+
 @Component
 public class WebSocketJwtInterceptor implements ChannelInterceptor {
 
-    private final JwtUtil jwtUtil;
+    private final JwtService jwtService;
 
-    public WebSocketJwtInterceptor(JwtUtil jwtUtil) {
-        this.jwtUtil = jwtUtil;
+    public WebSocketJwtInterceptor(JwtService jwtService) {
+        this.jwtService = jwtService;
     }
 
     @Override
@@ -28,19 +30,24 @@ public class WebSocketJwtInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        // Only validate JWT on CONNECT
+        // ✅ Validate JWT only during CONNECT
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
 
             String authHeader = accessor.getFirstNativeHeader("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                // ❌ No exception — just deny authentication
+                // ❌ No token → reject connection
                 return null;
             }
 
+            String token = authHeader.substring(7);
+
             try {
-                String token = authHeader.substring(7);
-                String username = jwtUtil.extractUsername(token);
+                String username = jwtService.extractUsername(token);
+
+                if (username == null || !jwtService.isTokenValid(token, username)) {
+                    return null;
+                }
 
                 Authentication authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -49,10 +56,11 @@ public class WebSocketJwtInterceptor implements ChannelInterceptor {
                                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
                         );
 
+                // ✅ This is what makes `Principal` available in controllers
                 accessor.setUser(authentication);
 
             } catch (Exception ex) {
-                // Invalid token → block connection
+                // ❌ Invalid token → block WebSocket connection
                 return null;
             }
         }

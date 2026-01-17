@@ -5,8 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.pritam44.RealTimeChatApp.user.User;
-import com.pritam44.RealTimeChatApp.user.UserRepository;
+import com.pritam44.RealTimeChatApp.model.User;
+import com.pritam44.RealTimeChatApp.repository.UserRepository;
 
 @Configuration   
 public class PasswordGenerator {
