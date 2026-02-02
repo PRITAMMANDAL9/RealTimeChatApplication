@@ -2,6 +2,11 @@
 
 window.stompClient = null;
 window.currentUser = null;
+window.privateSubscription = null;
+window.lastPrivateRoomId = null;
+window.hasJoinedPublic = false;
+window.joinedPrivateRooms = new Set();
+
 
 function connectWebSocket() {
     const token = localStorage.getItem("jwt");
@@ -11,7 +16,7 @@ function connectWebSocket() {
         return;
     }
 
-    const socket = new SockJS("/chat");
+    const socket = new SockJS("/ws");
 
     window.stompClient = new StompJs.Client({
         webSocketFactory: () => socket,
@@ -21,27 +26,33 @@ function connectWebSocket() {
         reconnectDelay: 5000
     });
 
-    stompClient.onConnect = frame => {
-        // ✅ authenticated username from backend
-        window.currentUser = frame.headers["user-name"];
+	stompClient.onConnect = frame => {
+	    console.log("✅ WS connected");
 
-        // ✅ subscribe first
-        if (typeof subscribePublicChat === "function") {
-            subscribePublicChat();
-        }
+	    window.currentUser = frame.headers["user-name"];
 
-        if (typeof subscribeNotifications === "function") {
-            subscribeNotifications();
-        }
+	    if (typeof subscribePublicChat === "function") {
+	        subscribePublicChat();
+	    }
 
-        // ✅ now broadcast JOIN
-        stompClient.publish({
-            destination: "/app/sendMessage",
-            body: JSON.stringify({ type: "JOIN" })
-        });
-    };
+	    // ✅ JOIN only once per browser session
+	    if (!window.hasJoinedPublic) {
+	        stompClient.publish({
+	            destination: "/app/sendMessage",
+	            body: JSON.stringify({ type: "JOIN" })
+	        });
+	        window.hasJoinedPublic = true;
+	    }
+
+	    // 🔁 restore private room after reconnect
+	    if (window.lastPrivateRoomId) {
+	        restorePrivateChat(window.lastPrivateRoomId);
+	    }
+	};
+
 
     stompClient.onStompError = () => {
+        console.error("❌ WS auth failed");
         localStorage.removeItem("jwt");
         window.location.href = "/login";
     };
@@ -53,7 +64,7 @@ function connectWebSocket() {
    PUBLIC MESSAGE
 ----------------------------- */
 function sendMessage(payload) {
-    if (!window.stompClient || !window.stompClient.connected) return;
+    if (!stompClient?.connected) return;
 
     stompClient.publish({
         destination: "/app/sendMessage",
@@ -65,14 +76,43 @@ function sendMessage(payload) {
    PRIVATE MESSAGE
 ----------------------------- */
 function sendPrivateMessage(roomId, text) {
-    if (!window.stompClient || !window.stompClient.connected) return;
-    if (!roomId || !text) return;
+    if (!stompClient?.connected) return;
 
     stompClient.publish({
-        destination: "/app/chat/" + roomId,
+        destination: `/app/chat/${roomId}`,
         body: JSON.stringify({
             type: "CHAT",
             content: text
         })
     });
+}
+
+/* -----------------------------
+   RESTORE PRIVATE CHAT
+----------------------------- */
+function restorePrivateChat(roomId) {
+    console.log("🔁 Restoring private room:", roomId);
+
+    if (window.privateSubscription) {
+        window.privateSubscription.unsubscribe();
+        window.privateSubscription = null;
+    }
+
+    if (typeof loadPrivateHistory === "function") {
+        loadPrivateHistory(roomId);
+    }
+
+    window.privateSubscription = stompClient.subscribe(
+        `/topic/chat/${roomId}`,
+        msg => showMessage(JSON.parse(msg.body))
+    );
+
+    // ✅ JOIN only once per room
+    if (!window.joinedPrivateRooms.has(roomId)) {
+        stompClient.publish({
+            destination: `/app/chat/${roomId}`,
+            body: JSON.stringify({ type: "JOIN" })
+        });
+        window.joinedPrivateRooms.add(roomId);
+    }
 }

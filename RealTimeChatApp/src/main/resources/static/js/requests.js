@@ -9,12 +9,15 @@ document.addEventListener("DOMContentLoaded", () => {
     loadSent();
 });
 
-/* ---------------------------
+/* ===========================
    SEND REQUEST
----------------------------- */
+=========================== */
 function sendRequest() {
     const username = document.getElementById("usernameInput").value.trim();
-    if (!username) return alert("Username required");
+    if (!username) {
+        alert("Username required");
+        return;
+    }
 
     fetch(`/api/chat-requests/${username}`, {
         method: "POST",
@@ -23,20 +26,24 @@ function sendRequest() {
         }
     })
     .then(res => {
-        if (res.status === 401) {
-            logout();
-            return;
+        if (!res.ok) {
+            if (res.status === 409) {
+                throw new Error("Request already sent");
+            }
+            if (res.status === 404) {
+                throw new Error("User not found");
+            }
+            throw new Error("Failed to send request");
         }
-        if (!res.ok) throw new Error("Failed to send request");
-        return res.text();
+        loadSent();
+        document.getElementById("usernameInput").value = "";
     })
-    .then(() => loadSent())
     .catch(err => alert(err.message));
 }
 
-/* ---------------------------
-   LOAD INCOMING
----------------------------- */
+/* ===========================
+   LOAD INCOMING (PENDING ONLY)
+=========================== */
 function loadIncoming() {
     fetch("/api/chat-requests/incoming", {
         headers: {
@@ -57,7 +64,8 @@ function loadIncoming() {
         div.innerHTML = "";
 
         if (!data.length) {
-            div.innerHTML = "<p class='text-muted'>No incoming requests</p>";
+            div.innerHTML =
+                "<p class='text-muted'>No incoming requests</p>";
             return;
         }
 
@@ -74,9 +82,9 @@ function loadIncoming() {
     });
 }
 
-/* ---------------------------
+/* ===========================
    LOAD SENT
----------------------------- */
+=========================== */
 function loadSent() {
     fetch("/api/chat-requests/sent", {
         headers: {
@@ -97,31 +105,39 @@ function loadSent() {
         div.innerHTML = "";
 
         if (!data.length) {
-            div.innerHTML = "<p class='text-muted'>No sent requests</p>";
+            div.innerHTML =
+                "<p class='text-muted'>No sent requests</p>";
             return;
         }
 
         data.forEach(req => {
             const el = document.createElement("div");
-            el.innerText = `${req.receiverUsername} (${req.status})`;
+            el.innerText =
+                `${req.receiverUsername} (${req.status})`;
             div.appendChild(el);
         });
     });
 }
 
-/* ---------------------------
+/* ===========================
    ACCEPT / REJECT
----------------------------- */
+=========================== */
 function accept(id) {
     fetch(`/api/chat-requests/${id}/accept`, {
         method: "POST",
         headers: {
             Authorization: "Bearer " + localStorage.getItem("jwt")
         }
-    }).then(() => {
-        loadIncoming();
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Failed to accept request");
+        }
+        loadIncoming(); // removed immediately
+        loadSent();
         notifyPrivateChatRefresh();
-    });
+    })
+    .catch(err => alert(err.message));
 }
 
 function reject(id) {
@@ -130,20 +146,28 @@ function reject(id) {
         headers: {
             Authorization: "Bearer " + localStorage.getItem("jwt")
         }
-    }).then(loadIncoming);
+    })
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Failed to reject request");
+        }
+        loadIncoming(); // removed immediately
+        loadSent();
+    })
+    .catch(err => alert(err.message));
 }
 
-/* ---------------------------
-   LOGOUT HANDLER
----------------------------- */
+/* ===========================
+   LOGOUT
+=========================== */
 function logout() {
     localStorage.removeItem("jwt");
     window.location.href = "/login";
 }
 
-/* ---------------------------
+/* ===========================
    REALTIME REFRESH HOOK
----------------------------- */
+=========================== */
 function notifyPrivateChatRefresh() {
     if (window.stompClient?.connected) {
         stompClient.publish({

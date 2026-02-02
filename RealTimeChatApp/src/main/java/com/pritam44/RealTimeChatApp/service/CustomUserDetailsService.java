@@ -1,4 +1,4 @@
-package com.pritam44.RealTimeChatApp.security;
+package com.pritam44.RealTimeChatApp.service;
 
 import java.util.Collections;
 

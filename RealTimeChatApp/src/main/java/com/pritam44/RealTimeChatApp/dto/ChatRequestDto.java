@@ -5,20 +5,17 @@ import com.pritam44.RealTimeChatApp.model.ChatRequest;
 public class ChatRequestDto {
 
     private Long id;
-    private String fromUser;
-    private String toUser;
+    private String senderUsername;
+    private String receiverUsername;
     private String status;
 
-    public ChatRequestDto(Long id, String fromUser, String toUser, String status) {
+    public ChatRequestDto(Long id, String senderUsername, String receiverUsername, String status) {
         this.id = id;
-        this.fromUser = fromUser;
-        this.toUser = toUser;
+        this.senderUsername = senderUsername;
+        this.receiverUsername = receiverUsername;
         this.status = status;
     }
 
-    /* =========================
-       STATIC MAPPER (IMPORTANT)
-       ========================= */
     public static ChatRequestDto from(ChatRequest r) {
         return new ChatRequestDto(
                 r.getId(),
@@ -28,26 +25,8 @@ public class ChatRequestDto {
         );
     }
 
-    /* ---------- GETTERS ---------- */
     public Long getId() { return id; }
-    public String getFromUser() { return fromUser; }
-    public String getToUser() { return toUser; }
+    public String getSenderUsername() { return senderUsername; }
+    public String getReceiverUsername() { return receiverUsername; }
     public String getStatus() { return status; }
-
-    /* ---------- SETTERS ---------- */
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setFromUser(String fromUser) {
-        this.fromUser = fromUser;
-    }
-
-    public void setToUser(String toUser) {
-        this.toUser = toUser;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
 }

@@ -1,104 +1,113 @@
-// privateChats.js
+window.privateSubscription = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-    const privateBtn = document.getElementById("privateBtn");
-    const publicBtn = document.getElementById("publicBtn");
+/* -------- INIT -------- */
+document.addEventListener("DOMContentLoaded", loadPrivateChats);
 
-    if (privateBtn) {
-        privateBtn.onclick = () => {
-            loadPrivateChats();
-        };
-    }
-
-    if (publicBtn) {
-        publicBtn.onclick = () => {
-            openPublicChat();
-        };
-    }
-});
-
-// ---------------------------
-// LOAD PRIVATE CHATS
-// ---------------------------
+/* -------- LOAD ROOMS -------- */
 function loadPrivateChats() {
-    const token = localStorage.getItem("jwt");
-    if (!token) return;
-
     fetch("/api/private-chats", {
-        headers: {
-            Authorization: "Bearer " + token
-        }
+        headers: { Authorization: "Bearer " + localStorage.getItem("jwt") }
     })
-    .then(res => {
-        if (!res.ok) throw new Error("Failed to load private chats");
-        return res.json();
-    })
+    .then(r => r.json())
     .then(renderPrivateChats)
-    .catch(err => {
-        console.error(err);
-        showEmptyState();
-    });
+    .catch(showEmptyState);
 }
 
-// ---------------------------
-// RENDER PRIVATE CHAT LIST
-// ---------------------------
 function renderPrivateChats(chats) {
     const list = document.getElementById("privateChatList");
-    if (!list) return;
-
     list.innerHTML = "";
-
-    if (!Array.isArray(chats) || chats.length === 0) {
-        showEmptyState();
-        return;
-    }
 
     chats.forEach(chat => {
         const div = document.createElement("div");
         div.className = "private-user";
-        div.dataset.roomId = chat.roomId;
-
-        div.innerHTML = `
-            <span class="username">${chat.username}</span>
-        `;
-
+        div.textContent = chat.username;
         div.onclick = () => openPrivateChat(chat.roomId, chat.username, div);
         list.appendChild(div);
     });
 }
 
-// ---------------------------
-// OPEN PRIVATE CHAT
-// ---------------------------
-function openPrivateChat(roomId, username, element) {
-    if (!roomId) return;
-
+/* -------- OPEN CHAT -------- */
+function openPrivateChat(roomId, username, el) {
     window.chatMode = "PRIVATE";
     window.currentRoomId = roomId;
+    window.lastPrivateRoomId = roomId;
 
     document.getElementById("chatTitle").innerText = username;
     document.getElementById("chat").innerHTML = "";
     document.getElementById("typing").innerText = "";
 
-    document.querySelectorAll(".private-user")
-        .forEach(el => el.classList.remove("active"));
+    document.querySelectorAll(".private-user").forEach(e => e.classList.remove("active"));
+    el.classList.add("active");
 
-    if (element) {
-        element.classList.add("active");
+    loadPrivateHistory(roomId);
+
+    if (window.privateSubscription) {
+        window.privateSubscription.unsubscribe();
+    }
+
+    window.privateSubscription = stompClient.subscribe(
+        `/topic/chat/${roomId}`,
+        msg => showPrivateMessage(JSON.parse(msg.body))
+    );
+}
+
+/* -------- HISTORY -------- */
+function loadPrivateHistory(roomId) {
+    fetch(`/api/messages/private/${roomId}`, {
+        headers: { Authorization: "Bearer " + localStorage.getItem("jwt") }
+    })
+    .then(r => r.json())
+    .then(messages => {
+        messages.forEach(showPrivateMessage);
+        markRead(roomId);
+    });
+}
+
+/* -------- INCOMING -------- */
+function showPrivateMessage(msg) {
+    if (!msg) return;
+
+    if (msg.type === "TYPING") {
+        if (msg.sender !== window.currentUser) showTyping(msg.sender);
+        return;
+    }
+
+    if (msg.type === "CHAT") {
+        appendChat(
+            msg.sender,
+            msg.content,
+            msg.sender === window.currentUser,
+            msg.status,
+            msg.id
+        );
+
+        if (msg.sender !== window.currentUser) {
+            stompClient.publish({
+                destination: `/app/chat/${window.currentRoomId}/read`,
+                body: JSON.stringify(msg.id)
+            });
+        }
+    }
+
+    if (msg.type === "READ") {
+        const el = document.querySelector(`[data-id="${msg.id}"]`);
+        if (el) el.classList.add("read");
     }
 }
 
-// ---------------------------
-// EMPTY STATE
-// ---------------------------
-function showEmptyState() {
-    const list = document.getElementById("privateChatList");
-    if (!list) return;
+/* -------- READ -------- */
+function markRead(roomId) {
+    document.querySelectorAll(".message.other").forEach(el => {
+        const id = el.dataset.id;
+        if (!id) return;
 
-    list.innerHTML = `
-        <div class="empty-state">
-            Start messaging
-        </div>
-    `;
+        stompClient.publish({
+            destination: `/app/chat/${roomId}/read`,
+            body: JSON.stringify(id)
+        });
+    });
+}
+
+function showEmptyState() {
+    document.getElementById("privateChatList").innerHTML = "<p>No private chats</p>";
 }

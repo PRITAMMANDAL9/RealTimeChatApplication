@@ -2,17 +2,7 @@ package com.pritam44.RealTimeChatApp.model;
 
 import java.time.Instant;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 
 @Entity
 @Table(
@@ -27,12 +17,10 @@ public class ChatRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Who sends the request
     @ManyToOne(optional = false)
     @JoinColumn(name = "sender_id")
     private User sender;
 
-    // Who receives the request
     @ManyToOne(optional = false)
     @JoinColumn(name = "receiver_id")
     private User receiver;
@@ -50,14 +38,14 @@ public class ChatRequest {
         REJECTED
     }
 
-    // 🔹 REQUIRED by JPA
     public ChatRequest() {}
 
-    public ChatRequest(User sender, User receiver) {
-        this.sender = sender;
-        this.receiver = receiver;
-        this.status = Status.PENDING;
+    @PrePersist
+    void onCreate() {
         this.createdAt = Instant.now();
+        if (this.status == null) {
+            this.status = Status.PENDING;
+        }
     }
 
 	public Long getId() {

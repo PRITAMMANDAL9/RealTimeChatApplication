@@ -4,8 +4,13 @@ import java.time.Instant;
 
 import jakarta.persistence.*;
 
-
 @Entity
+@Table(
+    name = "private_chat_room",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user1_id", "user2_id"})
+    }
+)
 public class PrivateChatRoom {
 
     @Id
@@ -13,61 +18,47 @@ public class PrivateChatRoom {
     private Long id;
 
     @ManyToOne(optional = false)
+    @JoinColumn(name = "user1_id")
     private User user1;
 
     @ManyToOne(optional = false)
+    @JoinColumn(name = "user2_id")
     private User user2;
 
-    private Instant createdAt = Instant.now();
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
 
-	public PrivateChatRoom(Long id, User user1, User user2, Instant createdAt) {
-		super();
-		this.id = id;
-		this.user1 = user1;
-		this.user2 = user2;
-		this.createdAt = createdAt;
-	}
-	
-	
+    /* -------------------------------------------------
+       REQUIRED BY JPA
+       ------------------------------------------------- */
+    protected PrivateChatRoom() {
+    }
 
-	public PrivateChatRoom() {
-		super();
-	}
+    /* -------------------------------------------------
+       CONSTRUCTOR USED BY APPLICATION CODE
+       ------------------------------------------------- */
+    public PrivateChatRoom(User user1, User user2) {
+        this.user1 = user1;
+        this.user2 = user2;
+        this.createdAt = Instant.now();
+    }
 
+    /* -------------------------------------------------
+       GETTERS / SETTERS
+       ------------------------------------------------- */
+    public Long getId() {
+        return id;
+    }
 
+    public User getUser1() {
+        return user1;
+    }
 
-	public Long getId() {
-		return id;
-	}
+    public User getUser2() {
+        return user2;
+    }
 
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public User getUser1() {
-		return user1;
-	}
-
-	public void setUser1(User user1) {
-		this.user1 = user1;
-	}
-
-	public User getUser2() {
-		return user2;
-	}
-
-	public void setUser2(User user2) {
-		this.user2 = user2;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-    
-    
-    
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }

@@ -1,152 +1,96 @@
-// chat.js
-
 let typingTimeout = null;
 
-// -----------------------------
-// GLOBAL CHAT STATE
-// -----------------------------
-window.chatMode = "PUBLIC";     // PUBLIC | PRIVATE
+window.chatMode = "PUBLIC";
 window.currentRoomId = null;
 
-// -----------------------------
-// SUBSCRIPTIONS
-// -----------------------------
+/* ---------------- PUBLIC SUB ---------------- */
 function subscribePublicChat() {
-    if (!stompClient) return;
-
     stompClient.subscribe("/topic/message", msg => {
         handleChatMessage(JSON.parse(msg.body));
     });
 }
 
-// -----------------------------
-// INCOMING MESSAGES
-// -----------------------------
+/* ---------------- INCOMING ---------------- */
 function handleChatMessage(message) {
+    if (!message) return;
 
-    // ⌨️ Typing indicator
     if (message.type === "TYPING") {
-        if (message.sender === currentUser) return;
-
-        const typing = document.getElementById("typing");
-        if (!typing) return;
-
-        typing.innerText = `${message.sender} is typing...`;
-
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            typing.innerText = "";
-        }, 1200);
+        if (message.sender === window.currentUser) return;
+        showTyping(message.sender);
         return;
     }
 
-    // 🔔 System join message
-    if (message.type === "JOIN") {
-        appendSystem(`${message.sender} joined the chat`);
-        return;
+    if (message.type === "CHAT") {
+        appendChat(
+            message.sender,
+            message.content,
+            message.sender === window.currentUser,
+            message.status,
+            message.id
+        );
     }
-
-    // 💬 Chat message
-    appendChat(
-        message.sender,
-        message.content,
-        message.sender === currentUser
-    );
 }
 
-// -----------------------------
-// UI HELPERS
-// -----------------------------
-function appendChat(sender, content, self) {
-    const chat = document.getElementById("chat");
-    if (!chat) return;
-
-    const div = document.createElement("div");
-    div.className = `message ${self ? "self" : "other"}`;
-    div.innerHTML = `<strong>${sender}</strong><br>${content}`;
-
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-function appendSystem(text) {
-    const chat = document.getElementById("chat");
-    if (!chat) return;
-
-    const div = document.createElement("div");
-    div.className = "system";
-    div.innerText = text;
-
-    chat.appendChild(div);
-}
-
-// -----------------------------
-// MODE SWITCHING
-// -----------------------------
-function openPublicChat() {
-    window.chatMode = "PUBLIC";
-    window.currentRoomId = null;
-
-    document.getElementById("chatTitle").innerText = "Public Chat";
-    document.getElementById("chat").innerHTML = "";
-    document.getElementById("typing").innerText = "";
-
-    document.querySelectorAll(".private-user")
-        .forEach(el => el.classList.remove("active"));
-}
-
-// -----------------------------
-// OUTGOING EVENTS
-// -----------------------------
+/* ---------------- SEND ---------------- */
 document.addEventListener("DOMContentLoaded", () => {
-
     const sendBtn = document.getElementById("sendBtn");
     const input = document.getElementById("messageInput");
 
-    if (!sendBtn || !input) return;
-
-    // SEND MESSAGE
     sendBtn.onclick = () => {
         const text = input.value.trim();
         if (!text || !stompClient?.connected) return;
 
         if (window.chatMode === "PUBLIC") {
+            sendMessage({ type: "CHAT", content: text });
+        }
 
-            sendMessage({
-                type: "CHAT",
-                content: text
-            });
-
-        } else if (window.chatMode === "PRIVATE" && window.currentRoomId) {
-
+        if (window.chatMode === "PRIVATE" && window.currentRoomId) {
             stompClient.publish({
                 destination: `/app/chat/${window.currentRoomId}`,
-                body: JSON.stringify({
-                    type: "CHAT",
-                    content: text
-                })
+                body: JSON.stringify({ type: "CHAT", content: text })
             });
-
         }
 
         input.value = "";
     };
 
-    // TYPING EVENT
     input.addEventListener("input", () => {
         if (!stompClient?.connected) return;
-
         if (window.chatMode === "PUBLIC") {
-
             sendMessage({ type: "TYPING" });
-
-        } else if (window.chatMode === "PRIVATE" && window.currentRoomId) {
-
-            stompClient.publish({
-                destination: `/app/chat/${window.currentRoomId}`,
-                body: JSON.stringify({ type: "TYPING" })
-            });
         }
     });
-
 });
+
+/* ---------------- UI ---------------- */
+function appendChat(sender, content, self, status = "SENT", id = null) {
+    if (id && document.querySelector(`[data-id="${id}"]`)) return;
+
+    const chat = document.getElementById("chat");
+    const div = document.createElement("div");
+
+    div.className = `message ${self ? "self" : "other"}`;
+    if (id) div.dataset.id = id;
+
+    let ticks = "", cls = "";
+    if (self) {
+        if (status === "SENT") ticks = "✓";
+        if (status === "DELIVERED") ticks = "✓✓";
+        if (status === "READ") { ticks = "✓✓"; cls = "read"; }
+    }
+
+    div.innerHTML = `
+        <div class="content">${content}</div>
+        ${self ? `<div class="meta ${cls}">${ticks}</div>` : ""}
+    `;
+
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping(user) {
+    const typing = document.getElementById("typing");
+    typing.innerText = `${user} is typing...`;
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => typing.innerText = "", 1200);
+}

@@ -22,14 +22,21 @@ public class ChatMessage {
 
     @Enumerated(EnumType.STRING)
     private MessageType type;
-
+    @Enumerated(EnumType.STRING)
+    private MessageStatus status;
     private String sender;
     private String content;
-    private String roomId;
+    private Long roomId;
     private Instant timestamp;
 
     public enum MessageType {
         CHAT, JOIN, LEAVE, TYPING
+    }
+    
+    public enum MessageStatus {
+        SENT,
+        DELIVERED,
+        READ
     }
     
 
@@ -37,10 +44,20 @@ public class ChatMessage {
 		super();
 	}
 
-	public ChatMessage(Long id, MessageType type, String sender, String content, String roomId, Instant timestamp) {
+	public MessageStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(MessageStatus status) {
+		this.status = status;
+	}
+
+	public ChatMessage(Long id, MessageType type, MessageStatus status, String sender, String content, Long roomId,
+			Instant timestamp) {
 		super();
 		this.id = id;
 		this.type = type;
+		this.status = status;
 		this.sender = sender;
 		this.content = content;
 		this.roomId = roomId;
@@ -79,11 +96,11 @@ public class ChatMessage {
 		this.content = content;
 	}
 
-	public String getRoomId() {
+	public Long getRoomId() {
 		return roomId;
 	}
 
-	public void setRoomId(String roomId) {
+	public void setRoomId(Long roomId) {
 		this.roomId = roomId;
 	}
 
