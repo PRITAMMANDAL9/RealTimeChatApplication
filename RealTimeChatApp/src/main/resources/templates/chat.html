@@ -1,69 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Chat App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/chat.css" rel="stylesheet">
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
 
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="/css/chat.css">
+
+    <!-- WebSocket libs (ORDER MATTERS) -->
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.2.0/bundles/stomp.umd.min.js"></script>
-
-    <script defer src="/js/websocket.js"></script>
-    <script defer src="/js/chat.js"></script>
-    <script defer src="/js/privateChats.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
 </head>
 
 <body>
 
-<div class="chat-header">
-    <span id="chatTitle">Public Chat</span>
+<div class="app">
 
-    <button id="chatRequestBtn"
-            class="chat-request-btn"
-            onclick="window.location.href='/requests'">
-        ➕ Chat Requests
-    </button>
-</div>
+    <!-- LEFT ICON BAR -->
+    <aside class="icon-bar">
+        <div class="icon-bar-top">
+            <div class="avatar">
+                <img src="/images/user.png" alt="User" />
+            </div>
+        </div>
 
+        <div class="icon-bar-center">
+            <button class="icon-btn active" id="nav-public">
+                <i class="ri-earth-line"></i>
+            </button>
+            <button class="icon-btn" id="nav-private">
+                <i class="ri-lock-line"></i>
+            </button>
+            <button class="icon-btn" id="nav-requests">
+                <i class="ri-user-add-line"></i>
+            </button>
+        </div>
 
-<div class="app-container">
-
-    <aside class="sidebar">
-        <div class="sidebar-header">Chats</div>
-
-        <button id="publicBtn" class="sidebar-btn active">🌍 Public Chat</button>
-        <button id="privateBtn" class="sidebar-btn">🔒 Private Chat</button>
-
-        <div class="sidebar-section">Private Chats</div>
-        <div id="privateChatList" class="private-list">
-            <div class="empty-state">Start messaging</div>
+        <div class="icon-bar-bottom">
+            <button class="icon-btn">
+                <i class="ri-settings-3-line"></i>
+            </button>
         </div>
     </aside>
 
-    <main class="chat-area">
-        <div class="chat-header">
-            <span id="chatTitle">Public Chat</span>
+    <!-- PRIVATE PANEL -->
+    <aside class="private-panel" id="privatePanel">
+        <div class="private-panel-header">
+            <input id="privateSearch" placeholder="Search chats" />
+        </div>
+        <div class="private-list" id="privateChatList"></div>
+    </aside>
+
+    <!-- CHAT -->
+    <main class="chat-container">
+        <header class="chat-header">
+
+    <div class="chat-user">
+        <span id="chatTitle">Public Chat</span>
+        <span class="online-dot" id="headerOnlineDot"></span>
+    </div>
+
+    <div class="chat-header-right">
+
+        <button class="icon-btn" id="chatMenuBtn">
+            <i class="ri-more-2-line"></i>
+        </button>
+
+        <div class="chat-menu" id="chatMenu">
+            <button id="blockToggleBtn"></button>
         </div>
 
-        <div id="chat" class="chat-body"></div>
-        <div id="typing"></div>
+    </div>
 
-        <div class="chat-footer">
-            <input id="messageInput" placeholder="Type a message">
-            <button id="sendBtn">Send</button>
-        </div>
+</header>
+
+
+        <section class="messages" id="chat"></section>
+        <div class="typing-indicator" id="typing"></div>
+
+        <footer class="chat-input">
+            <input id="messageInput" placeholder="Type a message…" />
+            <button id="sendBtn">
+                <i class="ri-send-plane-fill"></i>
+            </button>
+        </footer>
     </main>
 
 </div>
 
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        window.chatMode = "PUBLIC";
-        connectWebSocket();
-    });
-</script>
+<!-- APP JS (DEFERRED) -->
+<script defer src="/js/websocket.js"></script>
+<script defer src="/js/chat.js"></script>
+<script defer src="/js/privateChats.js"></script>
+<script defer src="/js/notifications.js"></script>
+<script defer src="/js/ui.js"></script>
 
 </body>
 </html>

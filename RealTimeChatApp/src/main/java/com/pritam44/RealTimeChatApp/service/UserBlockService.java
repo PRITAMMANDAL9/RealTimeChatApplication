@@ -40,14 +40,12 @@ public class UserBlockService {
                 .orElseThrow();
 
         if (blockRepository.existsByBlockerAndBlocked(blocker, blocked)) {
-            return; // already blocked
+            return;
         }
-
-        // Remove private chat rooms
-        roomRepository.deleteRoomBetweenUsers(blocker, blocked);
 
         blockRepository.save(new UserBlock(blocker, blocked));
     }
+
 
     public void unblockUser(String blockerUsername, String blockedUsername) {
 

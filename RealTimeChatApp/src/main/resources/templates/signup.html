@@ -4,35 +4,38 @@
     <meta charset="UTF-8">
     <title>Create Account</title>
 
-    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         body {
-            background: linear-gradient(135deg, #0d6efd, #6610f2);
+            background: #0f172a;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont;
+            color: #e5e7eb;
+            font-family: system-ui;
         }
 
-        .signup-card {
+        .auth-card {
             width: 100%;
             max-width: 420px;
-            background: #ffffff;
-            border-radius: 12px;
+            background: #020617;
             padding: 30px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0,0,0,.6);
         }
 
-        .signup-card h2 {
+        .auth-card h4 {
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 24px;
             font-weight: 600;
         }
 
         .form-control {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            color: #fff;
             height: 45px;
             border-radius: 8px;
         }
@@ -41,31 +44,33 @@
             height: 45px;
             border-radius: 8px;
             font-weight: 500;
+            background: #6366f1;
+            border: none;
         }
 
         .message {
-            margin-top: 15px;
-            text-align: center;
+            margin-top: 14px;
             font-size: 14px;
+            text-align: center;
         }
 
-        .login-link {
+        .auth-link {
             margin-top: 20px;
             text-align: center;
             font-size: 14px;
         }
 
-        .login-link a {
+        .auth-link a {
+            color: #818cf8;
             text-decoration: none;
-            font-weight: 500;
         }
     </style>
 </head>
 
 <body>
 
-<div class="signup-card">
-    <h2>Create Account</h2>
+<div class="auth-card">
+    <h4>Create Account</h4>
 
     <div class="mb-3">
         <input id="username" class="form-control" placeholder="Username">
@@ -79,7 +84,7 @@
 
     <div id="msg" class="message"></div>
 
-    <div class="login-link">
+    <div class="auth-link">
         Already have an account?
         <a href="/login">Login</a>
     </div>
@@ -94,8 +99,8 @@ function signup() {
     msg.innerText = "";
 
     if (!username || !password) {
-        msg.style.color = "red";
-        msg.innerText = "Username and password are required";
+        msg.style.color = "#f87171";
+        msg.innerText = "Username and password required";
         return;
     }
 
@@ -109,13 +114,13 @@ function signup() {
         if (!res.ok) throw text;
         return text;
     })
-    .then(data => {
-        msg.style.color = "green";
-        msg.innerText = data;
+    .then(text => {
+        msg.style.color = "#4ade80";
+        msg.innerText = text;
         setTimeout(() => window.location.href = "/login", 1500);
     })
     .catch(err => {
-        msg.style.color = "red";
+        msg.style.color = "#f87171";
         msg.innerText = err;
     });
 }

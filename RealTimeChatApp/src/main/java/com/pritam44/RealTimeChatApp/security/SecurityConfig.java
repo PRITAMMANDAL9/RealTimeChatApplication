@@ -1,5 +1,7 @@
 package com.pritam44.RealTimeChatApp.security;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,8 +30,18 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+            // ✅ ADD THIS BLOCK
+            .cors(cors -> cors.configurationSource(request -> {
+                var config = new org.springframework.web.cors.CorsConfiguration();
+                config.setAllowedOriginPatterns(List.of("*"));
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true);
+                return config;
+            }))
+
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {})
+
             .sessionManagement(sm ->
                 sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
@@ -38,39 +50,38 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
             .authorizeHttpRequests(auth -> auth
-            	    .requestMatchers(
-            	        "/login",
-            	        "/signup",
-            	        "/api/auth/**",
+                .requestMatchers(
+                    "/login",
+                    "/signup",
+                    "/api/auth/**",
 
-            	        // HTML pages
-            	        "/chat",
-            	        "/requests",
+                    // pages
+                    "/chat",
+                    "/requests",
 
-            	        // 🔴 REQUIRED FOR WEBSOCKET
-            	        "/ws/**",
-            	        "/chat/**",
-            	        "/topic/**",
-            	        "/app/**",
+                    // static
+                    "/css/**",
+                    "/js/**",
+                    "/images/**",
+                    "/favicon.ico",
+                    "/error",
 
-            	        // static
-            	        "/css/**",
-            	        "/js/**",
-            	        "/favicon.ico",
-            	        "/error"
-            	    ).permitAll()
+                    // 🔥 WebSocket + SockJS
+                    "/ws/**",
+                    "/ws",
+                    "/ws/info",
+                    "/ws/info/**",
+                    "/topic/**",
+                    "/app/**"
+                ).permitAll()
 
-            	    .requestMatchers(
-            	        "/api/chat-requests/**",
-            	        "/api/private-chats/**"
-            	    ).authenticated()
-
-            	    .anyRequest().authenticated()
-            	
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().authenticated()
             );
 
         return http.build();
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(

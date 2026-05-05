@@ -7,6 +7,7 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import com.pritam44.RealTimeChatApp.model.ChatMessage;
@@ -24,19 +25,25 @@ public class ChatController {
     private final PrivateChatRoomRepository roomRepo;
     private final UserRepository userRepo;
     private final UserPresenceService presenceService;
+    private final UserBlockService blockService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public ChatController(
             ChatMessageRepository messageRepo,
             PrivateChatRoomRepository roomRepo,
             UserRepository userRepo,
             UserBlockService blockService,
-            UserPresenceService presenceService) {
+            UserPresenceService presenceService,
+            SimpMessagingTemplate messagingTemplate) {
 
         this.messageRepo = messageRepo;
         this.roomRepo = roomRepo;
         this.userRepo = userRepo;
+        this.blockService = blockService; // ✅ ADD THIS
         this.presenceService = presenceService;
+        this.messagingTemplate = messagingTemplate;
     }
+
 
     /* =================================================
        PUBLIC CHAT
@@ -61,6 +68,7 @@ public class ChatController {
         if (message.getType() == ChatMessage.MessageType.JOIN) {
             accessor.getSessionAttributes().put("username", username);
             presenceService.markOnline(username);
+
             return message;
         }
 
@@ -85,26 +93,32 @@ public class ChatController {
        PRIVATE CHAT (ROOM BASED)
        ================================================= */
     @MessageMapping("/chat/{roomId}")
-    @SendTo("/topic/chat/{roomId}")
-    public ChatMessage privateChat(
+    public void privateChat(
             @DestinationVariable Long roomId,
             ChatMessage message,
             Principal principal) {
 
-        if (principal == null) {
-            throw new IllegalStateException("Unauthenticated");
-        }
+        if (principal == null) return;
 
         if (message.getType() != ChatMessage.MessageType.CHAT
             && message.getType() != ChatMessage.MessageType.TYPING) {
-            return null; // ⛔ ignore everything else
+            return;
         }
 
         User sender = userRepo.findByUsername(principal.getName())
                 .orElseThrow();
 
-        if (!roomRepo.isUserInRoom(roomId, sender)) {
-            throw new IllegalStateException("Not in room");
+        if (!roomRepo.isUserInRoom(roomId, sender)) return;
+
+        var room = roomRepo.findById(roomId).orElseThrow();
+
+        User receiver =
+                room.getUser1().equals(sender)
+                        ? room.getUser2()
+                        : room.getUser1();
+
+        if (blockService.isBlocked(sender, receiver)) {
+            return;
         }
 
         message.setRoomId(roomId);
@@ -116,9 +130,12 @@ public class ChatController {
             messageRepo.save(message);
         }
 
-        return message;
+        // 🔥 MANUAL BROKER SEND
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + roomId,
+                message
+        );
     }
-
 
     @MessageMapping("/chat/{roomId}/delivered")
     public void markDelivered(
@@ -133,8 +150,11 @@ public class ChatController {
 
         if (msg == null) return;
 
-        msg.setStatus(ChatMessage.MessageStatus.DELIVERED);
-        messageRepo.save(msg);
+        if (msg.getStatus() == ChatMessage.MessageStatus.SENT) {
+            msg.setStatus(ChatMessage.MessageStatus.DELIVERED);
+            messageRepo.save(msg);
+        }
+
     }
 
     @MessageMapping("/chat/{roomId}/read")
@@ -146,15 +166,18 @@ public class ChatController {
 
         if (messageId == null) return null;
 
-        ChatMessage msg = messageRepo.findById(messageId)
-                .orElse(null);
-
+        ChatMessage msg = messageRepo.findById(messageId).orElse(null);
         if (msg == null) return null;
+
+        // ⛔ STOP LOOP HERE
+        if (msg.getStatus() == ChatMessage.MessageStatus.READ) {
+            return null;
+        }
 
         msg.setStatus(ChatMessage.MessageStatus.READ);
         messageRepo.save(msg);
 
-        return msg; // 🔵 broadcast ✓✓
+        return msg;
     }
 
 

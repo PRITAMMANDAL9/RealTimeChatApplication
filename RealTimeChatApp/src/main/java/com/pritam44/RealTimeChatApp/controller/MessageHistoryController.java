@@ -1,6 +1,8 @@
 package com.pritam44.RealTimeChatApp.controller;
 
 import java.security.Principal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -39,14 +41,42 @@ public class MessageHistoryController {
             Principal principal) {
 
         User me = userRepo.findByUsername(principal.getName())
-                .orElseThrow();
+                .orElseThrow(() ->
+                    new ResponseStatusException(HttpStatus.UNAUTHORIZED)
+                );
 
-        if (!roomRepo.isUserInRoom(roomId, me)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        boolean isMember = roomRepo.isUserInRoom(roomId, me);
+
+        if (!isMember) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Not a member of this room"
+            );
         }
 
         return messageRepo
                 .findByRoomIdOrderByTimestampAsc(roomId);
     }
+    
+    @RestController
+    @RequestMapping("/api/messages")
+    public class PublicMessageHistoryController {
+
+        private final ChatMessageRepository messageRepo;
+
+        public PublicMessageHistoryController(ChatMessageRepository messageRepo) {
+            this.messageRepo = messageRepo;
+        }
+
+        @GetMapping("/public")
+        public List<ChatMessage> getLastOneDayPublicMessages() {
+
+            Instant since = Instant.now().minus(1, ChronoUnit.DAYS);
+
+            return messageRepo
+                    .findPublicMessagesSince(since);
+        }
+    }
+
 }
 
