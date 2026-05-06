@@ -6,10 +6,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.pritam44.RealTimeChatApp.model.ChatMessage;
@@ -35,48 +32,73 @@ public class MessageHistoryController {
         this.userRepo = userRepo;
     }
 
+    /* =================================================
+       PRIVATE CHAT - LATEST
+    ================================================= */
+
     @GetMapping("/private/{roomId}")
-    public List<ChatMessage> getPrivateMessages(
+    public List<ChatMessage> getLatestPrivateMessages(
             @PathVariable Long roomId,
             Principal principal) {
 
         User me = userRepo.findByUsername(principal.getName())
-                .orElseThrow(() ->
-                    new ResponseStatusException(HttpStatus.UNAUTHORIZED)
-                );
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
-        boolean isMember = roomRepo.isUserInRoom(roomId, me);
+        if (!roomRepo.isUserInRoom(roomId, me)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
 
-        if (!isMember) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Not a member of this room"
-            );
+        return messageRepo.findTop20ByRoomIdOrderByTimestampDesc(roomId);
+    }
+
+    /* =================================================
+       PRIVATE CHAT - OLDER
+    ================================================= */
+
+    @GetMapping("/private/{roomId}/before")
+    public List<ChatMessage> getOlderMessages(
+            @PathVariable Long roomId,
+            @RequestParam Instant before,
+            Principal principal) {
+
+        User me = userRepo.findByUsername(principal.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+
+        if (!roomRepo.isUserInRoom(roomId, me)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
 
         return messageRepo
-                .findByRoomIdOrderByTimestampAsc(roomId);
-    }
-    
-    @RestController
-    @RequestMapping("/api/messages")
-    public class PublicMessageHistoryController {
-
-        private final ChatMessageRepository messageRepo;
-
-        public PublicMessageHistoryController(ChatMessageRepository messageRepo) {
-            this.messageRepo = messageRepo;
-        }
-
-        @GetMapping("/public")
-        public List<ChatMessage> getLastOneDayPublicMessages() {
-
-            Instant since = Instant.now().minus(1, ChronoUnit.DAYS);
-
-            return messageRepo
-                    .findPublicMessagesSince(since);
-        }
+                .findTop20ByRoomIdAndTimestampBeforeOrderByTimestampDesc(roomId, before);
     }
 
-}
+    /* =================================================
+       PUBLIC CHAT - LATEST (LAST 1 DAY)
+    ================================================= */
+    @GetMapping("/public")
+    public List<ChatMessage> getLatestPublicMessages() {
 
+        Instant since = Instant.now().minus(1, ChronoUnit.DAYS);
+
+        List<ChatMessage> result =
+                messageRepo.findTop30ByRoomIdIsNullAndTimestampAfterOrderByTimestampDesc(since);
+
+        System.out.println("SINCE: " + since);
+        System.out.println("RESULT SIZE: " + result.size());
+
+        return result;
+    }
+
+    @GetMapping("/public/before")
+    public List<ChatMessage> getOlderPublicMessages(
+            @RequestParam Instant before) {
+
+        Instant since = Instant.now().minus(1, ChronoUnit.DAYS);
+
+        return messageRepo
+                .findTop30ByRoomIdIsNullAndTimestampBeforeAndTimestampAfterOrderByTimestampDesc(
+                        before,
+                        since
+                );
+    }
+    }

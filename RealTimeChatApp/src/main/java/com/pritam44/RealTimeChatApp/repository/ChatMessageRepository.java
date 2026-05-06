@@ -9,13 +9,24 @@ import java.time.Instant;
 import java.util.List;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
-	@Query("""
-		       SELECT m FROM ChatMessage m
-		       WHERE m.roomId IS NULL
-		       AND m.timestamp >= :since
-		       ORDER BY m.timestamp ASC
-		       """)
-		List<ChatMessage> findPublicMessagesSince(Instant since);
-	 List<ChatMessage> findByRoomIdOrderByTimestampAsc(Long roomId);
-}
 
+    /* ================= PUBLIC CHAT ================= */
+
+    List<ChatMessage> findTop30ByRoomIdIsNullAndTimestampAfterOrderByTimestampDesc(
+            Instant since
+    );
+
+    List<ChatMessage> findTop30ByRoomIdIsNullAndTimestampBeforeAndTimestampAfterOrderByTimestampDesc(
+            Instant before,
+            Instant since
+    );
+
+    /* ================= PRIVATE CHAT ================= */
+
+    List<ChatMessage> findTop20ByRoomIdOrderByTimestampDesc(Long roomId);
+
+    List<ChatMessage> findTop20ByRoomIdAndTimestampBeforeOrderByTimestampDesc(
+            Long roomId,
+            Instant before
+    );
+}
