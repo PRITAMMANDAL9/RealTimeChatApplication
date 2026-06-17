@@ -101,18 +101,27 @@ function openPrivateChat(roomId, username, el) {
 
             if (message.roomId !== window.currentRoomId) return;
 
-            if (message.type === "CHAT") {
-                appendPrivateMessage(message);
-            }
+			if (
+			    message.type === "TYPING" &&
+			    message.sender !== window.currentUser
+			) {
+			    showTyping(message.sender);
+			    return;
+			}
 
-            if (message.type === "READ") {
-                const bubble = document.querySelector(
-                    `.bubble[data-id="${message.id}"]`
-                );
-                if (bubble) {
-                    bubble.querySelector(".meta").innerText = "✓✓";
-                }
-            }
+			if (message.type === "CHAT") {
+			    appendPrivateMessage(message);
+			}
+
+			if (message.type === "READ") {
+			    const bubble = document.querySelector(
+			        `.bubble[data-id="${message.id}"]`
+			    );
+
+			    if (bubble) {
+			        bubble.querySelector(".meta").innerText = "✓✓";
+			    }
+			}
         }
     );
 

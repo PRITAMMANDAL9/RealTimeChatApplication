@@ -341,9 +341,9 @@ function showTyping(user) {
 
     clearTimeout(typingTimeout);
 
-    typingTimeout = setTimeout(() => {
-        typing.innerHTML = "";
-    }, 1500);
+	typingTimeout = setTimeout(() => {
+	    typing.innerHTML = "";
+	}, 3000);
 }
 
 /* =========================================================
@@ -394,8 +394,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const input = document.getElementById("messageInput");
 
-    const chat = document.getElementById("chat");
+	/* ================= TYPING ================= */
 
+	/* ================= TYPING ================= */
+
+	let lastTypingSent = 0;
+
+	input.addEventListener("input", () => {
+
+	    if (!window.stompClient?.connected) return;
+
+	    const now = Date.now();
+
+	    if (now - lastTypingSent < 1000) {
+	        return;
+	    }
+
+	    lastTypingSent = now;
+
+	    if (window.chatMode === "PUBLIC") {
+
+	        stompClient.publish({
+	            destination: "/app/sendMessage",
+	            body: JSON.stringify({
+	                type: "TYPING"
+	            })
+	        });
+
+	    } else if (window.currentRoomId) {
+
+	        stompClient.publish({
+	            destination: `/app/chat/${window.currentRoomId}`,
+	            body: JSON.stringify({
+	                type: "TYPING"
+	            })
+	        });
+	    }
+	});
     /* ================= SEND ================= */
 
     if (sendBtn) {
@@ -416,17 +451,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* ================= PAGINATION ================= */
 
-    if (chat) {
+	const chat = document.getElementById("chat");
 
-        chat.addEventListener("scroll", () => {
+	if (chat) {
 
-            if (window.chatMode !== "PUBLIC") return;
+	    chat.addEventListener("scroll", () => {
 
-            if (chat.scrollTop <= 10) {
-                loadOlderPublicMessages();
-            }
-        });
-    }
+	        if (window.chatMode !== "PUBLIC") return;
+
+	        if (chat.scrollTop <= 10) {
+	            loadOlderPublicMessages();
+	        }
+	    });
+	}
 
     /* ================= AUTO LOAD ================= */
 

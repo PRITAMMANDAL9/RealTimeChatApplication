@@ -66,9 +66,9 @@ function connectWebSocket() {
 
 	                if (message.roomId !== window.currentRoomId) return;
 
-	                if (message.type === "CHAT") {
-	                    renderPrivateMessage(message);
-	                }
+					if (message.type === "CHAT") {
+					    appendPrivateMessage(message);
+					}
 	            }
 	        );
 	    }
