@@ -90,42 +90,55 @@ function openPrivateChat(roomId, username, el) {
         window.privateSubscription = null;
     }
 
-    window.privateSubscription = stompClient.subscribe(
-        `/topic/chat/${roomId}`,
-        msg => {
+	window.privateSubscription = stompClient.subscribe(
+	    `/topic/chat/${roomId}`,
+	    msg => {
 
-            if (window.chatMode !== "PRIVATE") return;
+	        console.log("PRIVATE WS:", msg.body);
 
-            const message = JSON.parse(msg.body);
-            if (!message) return;
+	        if (window.chatMode !== "PRIVATE") return;
 
-            if (message.roomId !== window.currentRoomId) return;
+	        const message = JSON.parse(msg.body);
 
-			if (
-			    message.type === "TYPING" &&
-			    message.sender !== window.currentUser
-			) {
-			    showTyping(message.sender);
-			    return;
-			}
+	        if (!message) return;
 
-			if (message.type === "CHAT") {
-			    appendPrivateMessage(message);
-			}
+	        if (message.roomId !== window.currentRoomId) return;
 
-			if (message.type === "READ") {
-			    const bubble = document.querySelector(
-			        `.bubble[data-id="${message.id}"]`
-			    );
+	        if (
+	            message.type === "TYPING" &&
+	            message.sender !== window.currentUser
+	        ) {
+	            showTyping(message.sender);
+	            return;
+	        }
 
-			    if (bubble) {
-			        bubble.querySelector(".meta").innerText = "✓✓";
-			    }
-			}
-        }
-    );
+	        if (message.type === "CHAT") {
+	            appendPrivateMessage(message);
+	            return;
+	        }
 
-    checkBlockStatus(username);
+	        if (message.type === "READ") {
+
+	            const bubble = document.querySelector(
+	                `.bubble[data-id="${message.id}"]`
+	            );
+
+	            if (bubble) {
+
+	                const meta =
+	                    bubble.querySelector(".meta");
+
+	                if (meta) {
+	                    meta.innerText = "✓✓";
+	                }
+	            }
+	        }
+	    }
+	);
+
+	if (typeof checkBlockStatus === "function") {
+	    checkBlockStatus(username);
+	}
 
     attachScrollPagination();
 }

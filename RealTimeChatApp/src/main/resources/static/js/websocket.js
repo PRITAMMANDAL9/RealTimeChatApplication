@@ -52,26 +52,6 @@ function connectWebSocket() {
 	        subscribePublicChat();
 	    }
 
-	    if (window.chatMode === "PRIVATE" && window.currentRoomId) {
-	        if (window.privateSubscription) {
-	            window.privateSubscription.unsubscribe();
-	            window.privateSubscription = null;
-	        }
-
-	        window.privateSubscription = stompClient.subscribe(
-	            `/topic/chat/${window.currentRoomId}`,
-	            msg => {
-	                const message = JSON.parse(msg.body);
-	                if (!message) return;
-
-	                if (message.roomId !== window.currentRoomId) return;
-
-					if (message.type === "CHAT") {
-					    appendPrivateMessage(message);
-					}
-	            }
-	        );
-	    }
 	};
 
     stompClient.onStompError = frame => {
